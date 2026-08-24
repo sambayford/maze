@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MAZE</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Space+Grotesk:wght@300;500;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --panel: #111118;
+    --border: #2a2a3a;
+    --text: #e8e8f0;
+    --muted: #5a5a7a;
+    --accent: #7c6af7;
+    --accent2: #f76a8a;
+    --wall: #2a2a3a;
+    --path: #6af7c4;
+    --start: #6ab4f7;
+    --goal: #f7c46a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+    max-width: 420px;
+    padding: 0 10px;
+  }
+
+  header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 12px 4px 8px;
+  }
+
+  h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+  }
+
+  h1 span { color: var(--accent2); }
+
+  .level-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  #stat-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    padding: 0 2px 10px;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    flex: 1;
+  }
+
+  .panel-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    margin-bottom: 4px;
+  }
+
+  .panel-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+
+  #board-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  #canvas {
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    width: 100%;
+    background: var(--bg);
+  }
+
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10,10,15,0.9);
+    border-radius: 4px;
+    gap: 14px;
+    backdrop-filter: blur(2px);
+  }
+
+  #overlay.hidden { display: none; }
+
+  .overlay-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-align: center;
+  }
+
+  .overlay-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.6;
+    padding: 0 20px;
+  }
+
+  .btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 28px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn:hover { background: #9584ff; }
+  .btn:active { transform: scale(0.96); }
+
+  .btn-secondary {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:hover { background: var(--border); }
+
+  #touch-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 12px 2px 4px;
+  }
+
+  .dpad-row { display: flex; gap: 6px; }
+
+  .ctrl-btn {
+    width: 60px;
+    height: 60px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 1.4rem;
+    cursor: pointer;
+    transition: background 0.1s, transform 0.08s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .ctrl-btn.spacer { visibility: hidden; }
+
+  .ctrl-btn:active {
+    background: var(--border);
+    transform: scale(0.94);
+  }
+
+  #footer-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    padding-top: 10px;
+  }
+
+  #footer-row .btn {
+    flex: 1;
+    padding: 10px 8px;
+    font-size: 0.65rem;
+  }
+
+  #kb-hint {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    padding: 8px 0 4px;
+    text-align: center;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .pulse { animation: pulse 1.4s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>MA<span>ZE</span></h1>
+    <div class="level-label" id="level-label">LV 1</div>
+  </header>
+
+  <div id="stat-row">
+    <div class="panel">
+      <div class="panel-label">TIME</div>
+      <div class="panel-value" id="time-val">0:00</div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">MOVES</div>
+      <div class="panel-value" id="moves-val">0</div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">BEST</div>
+      <div class="panel-value" id="best-val">--</div>
+    </div>
+  </div>
+
+  <div id="board-wrap">
+    <canvas id="canvas" width="380" height="380"></canvas>
+    <div id="overlay">
+      <div class="overlay-title" id="overlay-title">MAZE</div>
+      <div class="overlay-sub" id="overlay-sub">Find your way from start to goal.<br>Swipe or use arrow keys to move.</div>
+      <button class="btn" id="start-btn">START</button>
+    </div>
+  </div>
+
+  <div id="touch-bar">
+    <div class="dpad-row">
+      <button class="ctrl-btn spacer"></button>
+      <button class="ctrl-btn" id="ctrl-up" title="Up">▲</button>
+      <button class="ctrl-btn spacer"></button>
+    </div>
+    <div class="dpad-row">
+      <button class="ctrl-btn" id="ctrl-left" title="Left">◀</button>
+      <button class="ctrl-btn" id="ctrl-down" title="Down">▼</button>
+      <button class="ctrl-btn" id="ctrl-right" title="Right">▶</button>
+    </div>
+  </div>
+
+  <div id="footer-row">
+    <button class="btn btn-secondary" id="new-maze-btn">NEW MAZE</button>
+  </div>
+
+  <div id="kb-hint">ARROWS / WASD MOVE · SWIPE TO MOVE</div>
+</div>
+
+<script>
+// ─── Constants ────────────────────────────────────────────────
+const BASE_SIZE = 8;      // starting grid size (cells per side) at level 1
+const MAX_SIZE = 24;      // cap grid growth
+const CANVAS_PX = 380;    // canvas is square, CSS scales it responsively
+
+// ─── State ────────────────────────────────────────────────────
+let level, gridSize, cell;
+let grid;              // grid[r][c] = {N,E,S,W} booleans = wall present
+let visited;           // grid[r][c] visited-by-player boolean (for trail)
+let playerR, playerC, startR, startC, goalR, goalC;
+let moves, startTime, elapsedMs, timerId;
+let running, won;
+let best; // best time in ms for current level (per-size), stored by grid size
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlay-title');
+const overlaySub = document.getElementById('overlay-sub');
+const startBtn = document.getElementById('start-btn');
+const newMazeBtn = document.getElementById('new-maze-btn');
+const timeEl = document.getElementById('time-val');
+const movesEl = document.getElementById('moves-val');
+const bestEl = document.getElementById('best-val');
+const levelLabel = document.getElementById('level-label');
+
+// ─── Persistence ──────────────────────────────────────────────
+function loadLevel() { return parseInt(localStorage.getItem('maze_level') || '1'); }
+function saveLevel(v) { localStorage.setItem('maze_level', v); }
+
+function bestKey(size) { return 'maze_best_' + size; }
+function loadBest(size) {
+  const raw = localStorage.getItem(bestKey(size));
+  return raw ? parseInt(raw) : null;
+}
+function saveBest(size, ms) {
+  const cur = loadBest(size);
+  if (cur === null || ms < cur) localStorage.setItem(bestKey(size), ms);
+}
+
+function saveState() {
+  if (!running) return;
+  const s = { level, gridSize, grid, visited, playerR, playerC, startR, startC, goalR, goalC, moves, elapsedMs: Date.now() - startTime };
+  localStorage.setItem('maze_state', JSON.stringify(s));
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('maze_state');
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    level = s.level; gridSize = s.gridSize; grid = s.grid; visited = s.visited;
+    playerR = s.playerR; playerC = s.playerC;
+    startR = s.startR; startC = s.startC; goalR = s.goalR; goalC = s.goalC;
+    moves = s.moves; elapsedMs = s.elapsedMs || 0;
+    return true;
+  } catch (e) { return false; }
+}
+
+function clearState() { localStorage.removeItem('maze_state'); }
+
+// ─── Maze generation: recursive backtracker ────────────────────
+function sizeForLevel(lv) {
+  return Math.min(MAX_SIZE, BASE_SIZE + (lv - 1) * 2);
+}
+
+function generateMaze(size) {
+  // grid[r][c] = {N:true,E:true,S:true,W:true} — true means wall present
+  const g = [];
+  for (let r = 0; r < size; r++) {
+    const row = [];
+    for (let c = 0; c < size; c++) row.push({ N: true, E: true, S: true, W: true });
+    g.push(row);
+  }
+
+  const seen = [];
+  for (let r = 0; r < size; r++) seen.push(new Array(size).fill(false));
+
+  const DIRS = [
+    { dr: -1, dc: 0, wall: 'N', opp: 'S' },
+    { dr: 0, dc: 1, wall: 'E', opp: 'W' },
+    { dr: 1, dc: 0, wall: 'S', opp: 'N' },
+    { dr: 0, dc: -1, wall: 'W', opp: 'E' },
+  ];
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // Iterative backtracker using explicit stack (avoids recursion depth issues on large grids)
+  const stack = [[0, 0]];
+  seen[0][0] = true;
+
+  while (stack.length) {
+    const [r, c] = stack[stack.length - 1];
+    const dirs = shuffle(DIRS.slice());
+    let advanced = false;
+    for (const d of dirs) {
+      const nr = r + d.dr, nc = c + d.dc;
+      if (nr < 0 || nr >= size || nc < 0 || nc >= size) continue;
+      if (seen[nr][nc]) continue;
+      g[r][c][d.wall] = false;
+      g[nr][nc][d.opp] = false;
+      seen[nr][nc] = true;
+      stack.push([nr, nc]);
+      advanced = true;
+      break;
+    }
+    if (!advanced) stack.pop();
+  }
+
+  return g;
+}
+
+function newMaze(lv) {
+  gridSize = sizeForLevel(lv);
+  grid = generateMaze(gridSize);
+  visited = [];
+  for (let r = 0; r < gridSize; r++) visited.push(new Array(gridSize).fill(false));
+  startR = 0; startC = 0;
+  goalR = gridSize - 1; goalC = gridSize - 1;
+  playerR = startR; playerC = startC;
+  visited[playerR][playerC] = true;
+  moves = 0;
+  elapsedMs = 0;
+}
+
+// ─── Rendering ──────────────────────────────────────────────────
+function resizeCanvas() {
+  canvas.width = CANVAS_PX;
+  canvas.height = CANVAS_PX;
+  cell = CANVAS_PX / gridSize;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // trail (visited cells)
+  ctx.fillStyle = 'rgba(122,106,247,0.10)';
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      if (visited[r][c]) ctx.fillRect(c * cell, r * cell, cell, cell);
+    }
+  }
+
+  // goal
+  const goalCx = goalC * cell + cell / 2, goalCy = goalR * cell + cell / 2;
+  ctx.fillStyle = getCss('--goal');
+  ctx.beginPath();
+  ctx.arc(goalCx, goalCy, cell * 0.28, 0, Math.PI * 2);
+  ctx.fill();
+
+  // start marker (small square, subtle)
+  ctx.fillStyle = 'rgba(106,180,247,0.5)';
+  ctx.fillRect(startC * cell + cell * 0.32, startR * cell + cell * 0.32, cell * 0.36, cell * 0.36);
+
+  // walls
+  ctx.strokeStyle = getCss('--wall');
+  ctx.lineWidth = Math.max(2, cell * 0.09);
+  ctx.lineCap = 'square';
+  ctx.beginPath();
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      const x = c * cell, y = r * cell;
+      const w = grid[r][c];
+      if (w.N) { ctx.moveTo(x, y); ctx.lineTo(x + cell, y); }
+      if (w.W) { ctx.moveTo(x, y); ctx.lineTo(x, y + cell); }
+      // draw S/E only on last row/col to avoid double-draw elsewhere (still fine to draw always)
+      if (r === gridSize - 1 && w.S) { ctx.moveTo(x, y + cell); ctx.lineTo(x + cell, y + cell); }
+      if (c === gridSize - 1 && w.E) { ctx.moveTo(x + cell, y); ctx.lineTo(x + cell, y + cell); }
+    }
+  }
+  ctx.stroke();
+
+  // player
+  const px = playerC * cell + cell / 2, py = playerR * cell + cell / 2;
+  ctx.fillStyle = getCss('--accent2');
+  ctx.beginPath();
+  ctx.arc(px, py, cell * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function getCss(varName) {
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+// ─── Movement ─────────────────────────────────────────────────
+function tryMove(dr, dc) {
+  if (!running || won) return;
+  const wallKey = dr === -1 ? 'N' : dr === 1 ? 'S' : dc === 1 ? 'E' : 'W';
+  if (grid[playerR][playerC][wallKey]) return; // blocked by wall
+  const nr = playerR + dr, nc = playerC + dc;
+  if (nr < 0 || nr >= gridSize || nc < 0 || nc >= gridSize) return;
+  playerR = nr; playerC = nc;
+  visited[playerR][playerC] = true;
+  moves++;
+  movesEl.textContent = moves;
+  draw();
+  saveState();
+  if (playerR === goalR && playerC === goalC) {
+    onWin();
+  }
+}
+
+// ─── Timer ────────────────────────────────────────────────────
+function tickTimer() {
+  const ms = elapsedMs + (running && !won ? Date.now() - startTime : 0);
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  timeEl.textContent = m + ':' + String(s).padStart(2, '0');
+}
+
+function startTimer() {
+  startTime = Date.now();
+  clearInterval(timerId);
+  timerId = setInterval(tickTimer, 250);
+}
+
+function stopTimer() {
+  clearInterval(timerId);
+  elapsedMs += Date.now() - startTime;
+}
+
+// ─── Game flow ──────────────────────────────────────────────────
+function beginLevel(lv, resumed) {
+  level = lv;
+  saveLevel(level);
+  levelLabel.textContent = 'LV ' + level;
+  if (!resumed) newMaze(level);
+  resizeCanvas();
+  best = loadBest(gridSize);
+  bestEl.textContent = best !== null ? formatTime(best) : '--';
+  running = true;
+  won = false;
+  overlay.classList.add('hidden');
+  movesEl.textContent = moves;
+  startTimer();
+  draw();
+  saveState();
+}
+
+function formatTime(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+function onWin() {
+  won = true;
+  running = false;
+  stopTimer();
+  const finalMs = elapsedMs;
+  saveBest(gridSize, finalMs);
+  clearState();
+  const newBest = loadBest(gridSize);
+  bestEl.textContent = formatTime(newBest);
+  overlayTitle.textContent = 'SOLVED!';
+  overlaySub.innerHTML = `Time ${formatTime(finalMs)} · ${moves} moves<br>Level ${level} complete. Ready for the next maze?`;
+  startBtn.textContent = 'NEXT LEVEL';
+  overlay.classList.remove('hidden');
+}
+
+function nextLevel() {
+  const lv = level + 1;
+  beginLevel(lv, false);
+}
+
+function restartSameLevel() {
+  newMaze(level);
+  beginLevel(level, true);
+}
+
+// ─── Controls: keyboard ──────────────────────────────────────────
+window.addEventListener('keydown', (e) => {
+  const map = {
+    ArrowUp: [-1, 0], w: [-1, 0], W: [-1, 0],
+    ArrowDown: [1, 0], s: [1, 0], S: [1, 0],
+    ArrowLeft: [0, -1], a: [0, -1], A: [0, -1],
+    ArrowRight: [0, 1], d: [0, 1], D: [0, 1],
+  };
+  if (map[e.key]) {
+    e.preventDefault();
+    tryMove(map[e.key][0], map[e.key][1]);
+  }
+});
+
+// ─── Controls: on-screen buttons ─────────────────────────────────
+document.getElementById('ctrl-up').addEventListener('click', () => tryMove(-1, 0));
+document.getElementById('ctrl-down').addEventListener('click', () => tryMove(1, 0));
+document.getElementById('ctrl-left').addEventListener('click', () => tryMove(0, -1));
+document.getElementById('ctrl-right').addEventListener('click', () => tryMove(0, 1));
+
+// ─── Controls: swipe ──────────────────────────────────────────
+let touchStartX = 0, touchStartY = 0, touchActive = false;
+const SWIPE_THRESHOLD = 24;
+
+canvas.addEventListener('touchstart', (e) => {
+  if (e.touches.length !== 1) return;
+  touchActive = true;
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+canvas.addEventListener('touchend', (e) => {
+  if (!touchActive) return;
+  touchActive = false;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - touchStartX;
+  const dy = t.clientY - touchStartY;
+  if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) return;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    tryMove(0, dx > 0 ? 1 : -1);
+  } else {
+    tryMove(dy > 0 ? 1 : -1, 0);
+  }
+}, { passive: true });
+
+// ─── Buttons ──────────────────────────────────────────────────
+startBtn.addEventListener('click', () => {
+  if (won) {
+    nextLevel();
+  } else {
+    beginLevel(level, resumedFromSave);
+  }
+});
+
+newMazeBtn.addEventListener('click', () => {
+  if (!confirm('Start a new maze at the current level? Progress on this maze will be lost.')) return;
+  clearState();
+  restartSameLevel();
+});
+
+// ─── Init ─────────────────────────────────────────────────────
+let resumedFromSave = false;
+level = loadLevel();
+
+if (loadState()) {
+  resumedFromSave = true;
+  gridSize = sizeForLevel(level);
+  resizeCanvas();
+  best = loadBest(gridSize);
+  bestEl.textContent = best !== null ? formatTime(best) : '--';
+  movesEl.textContent = moves;
+  timeEl.textContent = formatTime(elapsedMs);
+  draw();
+  startBtn.textContent = 'RESUME';
+  overlayTitle.textContent = 'MAZE';
+  overlaySub.innerHTML = 'A maze is in progress.<br>Resume where you left off?';
+  levelLabel.textContent = 'LV ' + level;
+  running = false;
+  won = false;
+} else {
+  newMaze(level);
+  gridSize = sizeForLevel(level);
+  resizeCanvas();
+  best = loadBest(gridSize);
+  bestEl.textContent = best !== null ? formatTime(best) : '--';
+  draw();
+  levelLabel.textContent = 'LV ' + level;
+}
+
+// One-time-per-tab cache-busting reload, same pattern as fruit-cascade/gen-golf
+(function refreshCache() {
+  if (sessionStorage.getItem('maze_cb_done')) return;
+  sessionStorage.setItem('maze_cb_done', '1');
+  saveState();
+  if ('caches' in window) {
+    caches.keys().then(names => names.forEach(n => caches.delete(n)));
+  }
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+  }
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('_cb')) {
+    url.searchParams.set('_cb', Date.now().toString());
+    window.location.replace(url.toString());
+  }
+})();
+</script>
+</body>
+</html>
