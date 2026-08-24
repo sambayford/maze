@@ -19,6 +19,7 @@
     --path: #6af7c4;
     --start: #6ab4f7;
     --goal: #f7c46a;
+    --fog: rgba(9,9,14,0.96);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -230,13 +231,126 @@
 
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
   .pulse { animation: pulse 1.4s ease-in-out infinite; }
+
+  .header-btns {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #settings-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s, transform 0.1s;
+  }
+
+  #settings-btn:hover { color: var(--text); }
+  #settings-btn:active { transform: scale(0.9); }
+
+  #settings-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    backdrop-filter: blur(2px);
+  }
+
+  #settings-overlay.hidden { display: none; }
+
+  #settings-modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 16px;
+  }
+
+  .settings-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .setting-row:first-of-type { border-top: none; }
+
+  .setting-label { font-size: 0.85rem; }
+  .setting-desc {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  .toggle {
+    position: relative;
+    width: 42px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .toggle-track::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    top: 3px;
+    background: var(--text);
+    border-radius: 50%;
+    transition: transform 0.15s;
+  }
+
+  .toggle input:checked + .toggle-track { background: var(--accent); }
+  .toggle input:checked + .toggle-track::before { transform: translateX(18px); }
+
+  #settings-close {
+    width: 100%;
+    margin-top: 16px;
+  }
 </style>
 </head>
 <body>
 <div id="app">
   <header>
     <h1>MA<span>ZE</span></h1>
-    <div class="level-label" id="level-label">LV 1</div>
+    <div class="header-btns">
+      <div class="level-label" id="level-label">LV 1</div>
+      <button id="settings-btn" title="Settings">⚙</button>
+    </div>
   </header>
 
   <div id="stat-row">
@@ -283,6 +397,23 @@
   <div id="kb-hint">ARROWS / WASD MOVE · SWIPE TO MOVE</div>
 </div>
 
+<div id="settings-overlay" class="hidden">
+  <div id="settings-modal">
+    <div class="settings-title">SETTINGS</div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Fog of war</div>
+        <div class="setting-desc">Only reveal the maze near you.<br>Explored paths stay visible.</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="fog-toggle">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+    <button class="btn" id="settings-close">DONE</button>
+  </div>
+</div>
+
 <script>
 // ─── Constants ────────────────────────────────────────────────
 const BASE_SIZE = 8;      // starting grid size (cells per side) at level 1
@@ -309,6 +440,33 @@ const timeEl = document.getElementById('time-val');
 const movesEl = document.getElementById('moves-val');
 const bestEl = document.getElementById('best-val');
 const levelLabel = document.getElementById('level-label');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsOverlay = document.getElementById('settings-overlay');
+const settingsClose = document.getElementById('settings-close');
+const fogToggle = document.getElementById('fog-toggle');
+
+// ─── Settings ─────────────────────────────────────────────────
+const FOG_KEY = 'maze_fog_enabled';
+const FOG_RADIUS = 2; // cells visible around the player, in addition to explored trail
+let fogEnabled = localStorage.getItem(FOG_KEY) === '1';
+fogToggle.checked = fogEnabled;
+
+settingsBtn.addEventListener('click', () => settingsOverlay.classList.remove('hidden'));
+settingsClose.addEventListener('click', () => settingsOverlay.classList.add('hidden'));
+settingsOverlay.addEventListener('click', (e) => {
+  if (e.target === settingsOverlay) settingsOverlay.classList.add('hidden');
+});
+fogToggle.addEventListener('change', () => {
+  fogEnabled = fogToggle.checked;
+  localStorage.setItem(FOG_KEY, fogEnabled ? '1' : '0');
+  draw();
+});
+
+function isRevealed(r, c) {
+  if (!fogEnabled) return true;
+  if (visited[r][c]) return true;
+  return Math.abs(r - playerR) <= FOG_RADIUS && Math.abs(c - playerC) <= FOG_RADIUS;
+}
 
 // ─── Persistence ──────────────────────────────────────────────
 function loadLevel() { return parseInt(localStorage.getItem('maze_level') || '1'); }
@@ -435,16 +593,20 @@ function draw() {
     }
   }
 
-  // goal
-  const goalCx = goalC * cell + cell / 2, goalCy = goalR * cell + cell / 2;
-  ctx.fillStyle = getCss('--goal');
-  ctx.beginPath();
-  ctx.arc(goalCx, goalCy, cell * 0.28, 0, Math.PI * 2);
-  ctx.fill();
+  // goal (hidden under fog until revealed)
+  if (isRevealed(goalR, goalC)) {
+    const goalCx = goalC * cell + cell / 2, goalCy = goalR * cell + cell / 2;
+    ctx.fillStyle = getCss('--goal');
+    ctx.beginPath();
+    ctx.arc(goalCx, goalCy, cell * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // start marker (small square, subtle)
-  ctx.fillStyle = 'rgba(106,180,247,0.5)';
-  ctx.fillRect(startC * cell + cell * 0.32, startR * cell + cell * 0.32, cell * 0.36, cell * 0.36);
+  if (isRevealed(startR, startC)) {
+    ctx.fillStyle = 'rgba(106,180,247,0.5)';
+    ctx.fillRect(startC * cell + cell * 0.32, startR * cell + cell * 0.32, cell * 0.36, cell * 0.36);
+  }
 
   // walls
   ctx.strokeStyle = getCss('--wall');
@@ -464,7 +626,17 @@ function draw() {
   }
   ctx.stroke();
 
-  // player
+  // fog of war: cover any cell not yet explored and outside the reveal radius
+  if (fogEnabled) {
+    ctx.fillStyle = getCss('--fog');
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        if (!isRevealed(r, c)) ctx.fillRect(c * cell, r * cell, cell, cell);
+      }
+    }
+  }
+
+  // player (always visible — drawn above fog)
   const px = playerC * cell + cell / 2, py = playerR * cell + cell / 2;
   ctx.fillStyle = getCss('--accent2');
   ctx.beginPath();
