@@ -410,6 +410,16 @@
         <span class="toggle-track"></span>
       </label>
     </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Hide explored path</div>
+        <div class="setting-desc">Don't highlight cells you've<br>already walked through.</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="trail-toggle">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
     <button class="btn" id="settings-close">DONE</button>
   </div>
 </div>
@@ -444,12 +454,16 @@ const settingsBtn = document.getElementById('settings-btn');
 const settingsOverlay = document.getElementById('settings-overlay');
 const settingsClose = document.getElementById('settings-close');
 const fogToggle = document.getElementById('fog-toggle');
+const trailToggle = document.getElementById('trail-toggle');
 
 // ─── Settings ─────────────────────────────────────────────────
 const FOG_KEY = 'maze_fog_enabled';
+const TRAIL_HIDDEN_KEY = 'maze_trail_hidden';
 const FOG_RADIUS = 2; // cells visible around the player, in addition to explored trail
 let fogEnabled = localStorage.getItem(FOG_KEY) === '1';
+let trailHidden = localStorage.getItem(TRAIL_HIDDEN_KEY) === '1';
 fogToggle.checked = fogEnabled;
+trailToggle.checked = trailHidden;
 
 settingsBtn.addEventListener('click', () => settingsOverlay.classList.remove('hidden'));
 settingsClose.addEventListener('click', () => settingsOverlay.classList.add('hidden'));
@@ -459,6 +473,11 @@ settingsOverlay.addEventListener('click', (e) => {
 fogToggle.addEventListener('change', () => {
   fogEnabled = fogToggle.checked;
   localStorage.setItem(FOG_KEY, fogEnabled ? '1' : '0');
+  draw();
+});
+trailToggle.addEventListener('change', () => {
+  trailHidden = trailToggle.checked;
+  localStorage.setItem(TRAIL_HIDDEN_KEY, trailHidden ? '1' : '0');
   draw();
 });
 
@@ -586,10 +605,12 @@ function draw() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // trail (visited cells)
-  ctx.fillStyle = 'rgba(122,106,247,0.10)';
-  for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize; c++) {
-      if (visited[r][c]) ctx.fillRect(c * cell, r * cell, cell, cell);
+  if (!trailHidden) {
+    ctx.fillStyle = 'rgba(122,106,247,0.10)';
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        if (visited[r][c]) ctx.fillRect(c * cell, r * cell, cell, cell);
+      }
     }
   }
 
